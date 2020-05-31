@@ -23,7 +23,7 @@ Required language features:
 
 ### Type hierarchies
 
-A dependency of given type `X` is exposed not only as `X` but also all of its super types, including generic interfaces.
+A dependency of a given type `X` is exposed not only as `X` but also all of its super types, including generic interfaces.
 
 ```python
 class A: pass
@@ -31,6 +31,7 @@ class B(Generic[T]): pass
 class C(A, B[int]): pass
 
 container.register_class(C)
+
 # All of these return an instance of C
 container.resolve(A)
 container.resolve(B[int])
