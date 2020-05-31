@@ -1,3 +1,6 @@
+[![PyPI version](https://badge.fury.io/py/gean.svg)](https://badge.fury.io/py/gean)
+[![Build Status](https://travis-ci.org/Garciat/gean.svg?branch=master)](https://travis-ci.org/Garciat/gean)
+
 # gean
 
 A minimal IOC container inspired by Spring.
