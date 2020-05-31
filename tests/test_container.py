@@ -39,9 +39,14 @@ def test_hierarchy() -> None:
 
 
 def test_generic_base() -> None:
-  class A(Generic[_T]): pass
-  class B(A[int]): pass
+  class A: pass
+  class B(Generic[_T]): pass
+  class C(A, B[int]): pass
 
   container = Container()
-  container.register_class(B)
-  container.resolve(A[int])
+  container.register_class(C)
+  c = container.resolve(C)
+
+  assert isinstance(c, C)
+  assert container.resolve(A) is c
+  assert container.resolve(B[int]) is c

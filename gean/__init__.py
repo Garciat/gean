@@ -193,7 +193,7 @@ class ConstructorClassProvider(Generic[_T], Provider[_T]):
 
   def provide(self, resolver: Resolver) -> _T:
     annotations = typing.get_type_hints(self._constructor)
-    return self._constructor(**kwargs_for_annotations(resolver, annotations))
+    return cast(Callable[..., _T], self._cls)(**kwargs_for_annotations(resolver, annotations))
 
   def __hash__(self) -> int:
     return hash(self._cls)
@@ -249,7 +249,7 @@ class CachedProvider(Generic[_T], Provider[_T]):
     return self._subject.typeof
 
   def provide(self, resolver: Resolver) -> _T:
-    if isinstance(self._UNSET, CacheSentinel):
+    if isinstance(self._instance, CacheSentinel):
       self._instance = instance = self._subject.provide(resolver)
       return instance
     else:
