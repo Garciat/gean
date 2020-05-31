@@ -345,8 +345,6 @@ class Container(Resolver):
   def _get_candidates(self, interface: Type[_T], name: Optional[str]) -> Iterable[Provider[_T]]:
     for_interface = self._interface_providers(interface)
 
-    print(interface, for_interface)
-
     for available_name, for_name in for_interface.items():
       for provider in for_name:
         if name is None or available_name is None or name == available_name:
