@@ -44,6 +44,23 @@ container.resolve(B[int])
 container.resolve(C)
 ```
 
+### Caching
+
+All dependencies are cached as they are constructed.
+
+```python
+from gean import Container
+
+class A: pass
+
+container = Container()
+container.register_class(A)
+
+a1 = container.resolve(A)
+a2 = container.resolve(A)
+assert a1 is a2
+```
+
 ### Autowiring
 
 ```python
@@ -67,11 +84,37 @@ container.register_class(Subject)
 container.resolve(Manager).run()
 ```
 
+### Constructor wiring
+
+```python
+from gean import Container
+
+class Subject:
+  def work(self):
+    print('working')
+
+class Manager:
+  def __init__(self, subject: Subject):
+    self.subject = subject
+  def run(self):
+    self.subject.work()
+
+container = Container()
+# Order of registration does not matter
+container.register_class(Manager)
+container.register_class(Subject)
+
+# This prints 'working'
+container.resolve(Manager).run()
+```
+
 ### Modules
 
 A **module** is a class whose name ends in `Module`.
 
 A module may declaratively `@includes` other classes or modules.
+
+A module may use public method to create dependencies programmatically.
 
 ```python
 from gean import Container, includes
@@ -88,17 +131,26 @@ class DNSService:
 )
 class NetworkModule: pass
 
+class AppConfig: pass
+
 class Application:
+  config: AppConfig
   dns_service: DNSService
   ping_service: PingService
   def run(self):
+    print(self.config)
     self.ping_service.ping(self.dns_service.resolve('garciat.com'))
+
+def load_configuration() -> AppConfig: ...
 
 @includes(
   NetworkModule,
   Application,
 )
-class ApplicationModule: pass
+class ApplicationModule:
+  # Create config programmatically
+  def config(self) -> AppConfig:
+    return load_configuration()
 
 container = Container()
 # No other dependencies need to be declared manually
