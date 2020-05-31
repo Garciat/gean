@@ -54,7 +54,7 @@ class Subject:
     print('working')
 
 class Manager:
-  subject: 'Subject'  # will be autowired
+  subject: Subject  # will be autowired
   def run(self):
     self.subject.work()
 
@@ -71,7 +71,7 @@ container.resolve(Manager).run()
 
 A **module** is a class whose name ends in `Module`.
 
-A module may declaratively `@include` other classes or modules.
+A module may declaratively `@includes` other classes or modules.
 
 ```python
 from gean import Container, includes
@@ -82,19 +82,19 @@ class PingService:
 class DNSService:
   def resolve(self, name): ...
 
-@include(
+@includes(
   DNSService,
   PingService,
 )
 class NetworkModule: pass
 
-def Application:
+class Application:
   dns_service: DNSService
   ping_service: PingService
   def run(self):
-    ping_service.ping(dns_service.resolve('garciat.com'))
+    self.ping_service.ping(self.dns_service.resolve('garciat.com'))
 
-@include(
+@includes(
   NetworkModule,
   Application,
 )
@@ -116,7 +116,7 @@ from gean import Container
 container = Container()
 # Both dependencies are of type `str`
 container.register_instance('/tmp', name='tmp_dir')
-container.register_instance('/home/garciat', tmp='user_dir')
+container.register_instance('/home/garciat', name='user_dir')
 
 # Disambiguate with name
 container.resolve(str, name='tmp_dir')

@@ -17,13 +17,13 @@ def test_readme_examples() -> None:
   # tried using `exec` but type hint resolution was broken?
   with tempfile.TemporaryDirectory() as tmpdirname:
     for i, example in enumerate(examples):
-      filename = 'example{}.py'.format(i)
+      filename = 'example{}.py'.format(i + 1)
       filepath = os.path.join(tmpdirname, filename)
 
       with open(filepath, 'w') as f:
         f.write(example)
 
-      subprocess.call(['python3', filepath])
+      subprocess.check_call(['python3', filepath])
 
 
 def test_big_example() -> None:

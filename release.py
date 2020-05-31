@@ -25,11 +25,11 @@ def assert_clean_working_tree():
 
 
 def assert_tests_pass():
-  subprocess.call(['python3', 'setup.py', 'test'])
+  subprocess.check_call(['python3', 'setup.py', 'test'])
 
 
 def _main():
-  subprocess.call(['git', 'fetch', 'origin', 'master'])
+  subprocess.check_call(['git', 'fetch', 'origin', 'master'])
 
   assert_clean_working_tree()
 
@@ -46,20 +46,20 @@ def _main():
   print('Writing version file')
   update_current_version(new)
 
-  subprocess.call(['git', 'diff', 'VERSION'])
+  subprocess.check_call(['git', 'diff', 'VERSION'])
 
   if input('Proceed? ').lower() != 'y':
-    subprocess.call(['git', 'checkout', 'VERSION'])
+    subprocess.check_call(['git', 'checkout', 'VERSION'])
     exit(1)
 
-  subprocess.call(['git', 'commit', '-am', 'Prepare for release'])
+  subprocess.check_call(['git', 'commit', '-am', 'Prepare for release'])
 
-  subprocess.call(['python3', 'setup.py', 'sdist', 'bdist_wheel'])
+  subprocess.check_call(['python3', 'setup.py', 'sdist', 'bdist_wheel'])
 
   if input('Upload? ').lower() != 'y':
     exit(1)
 
-  subprocess.call(['python3', '-m', 'twine', 'upload', '--repository', 'pypi', 'dist/*'])
+  subprocess.check_call(['python3', '-m', 'twine', 'upload', '--repository', 'pypi', 'dist/*'])
 
 
 if __name__ == "__main__":
