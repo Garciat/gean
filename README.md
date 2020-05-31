@@ -41,14 +41,14 @@ container.resolve(C)
 ### Autowiring
 
 ```python
+class Subject:
+  def work(self):
+    print('working')
+
 class Manager:
   subject: Subject  # will be autowired
   def run(self):
     self.subject.work()
-
-class Subject:
-  def work(self):
-    print('working')
 
 # Order of registration does not matter
 container.register_class(Manager)
