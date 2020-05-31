@@ -11,7 +11,102 @@ A minimal IOC container inspired by Spring.
 python3 -m pip install gean
 ```
 
-## Example
+## Requirements
+
+`gean`, like Spring, relies on types and signatures to build and resolve the dependency graph.
+
+Required language features: 
+  - [PEP 484 - Type Hints](https://www.python.org/dev/peps/pep-0484/) (Python 3.5+)
+  - [PEP 526 - Syntax for Variable Annotations](https://www.python.org/dev/peps/pep-0526/) (Python 3.6+)
+
+## Features
+
+### Type hierarchies
+
+A dependency of given type `X` is exposed not only as `X` but also all of its super types, including generic interfaces.
+
+```python
+class A: pass
+class B(Generic[T]): pass
+class C(A, B[int]): pass
+
+container.register_class(C)
+# All of these return an instance of C
+container.resolve(A)
+container.resolve(B[int])
+container.resolve(C)
+```
+
+### Autowiring
+
+```python
+class Manager:
+  subject: Subject  # will be autowired
+  def run(self):
+    self.subject.work()
+
+class Subject:
+  def work(self):
+    print('working')
+
+# Order of registration does not matter
+container.register_class(Manager)
+container.register_class(Subject)
+
+# This prints 'working'
+container.resolve(Manager).run()
+```
+
+### Modules
+
+A **module** is a class whose name ends in `Module`.
+
+A module may declaratively `@include` other classes or modules.
+
+```python
+class PingService:
+  def ping(self, addr): ...
+
+class DNSService:
+  def resolve(self, name): ...
+
+@include(
+  DNSService,
+  PingService,
+)
+class NetworkModule: pass
+
+def Application:
+  dns_service: DNSService
+  ping_service: PingService
+  def run(self):
+    ping_service.ping(dns_service.resolve('garciat.com'))
+
+@include(
+  NetworkModule,
+  Application,
+)
+class ApplicationModule: pass
+
+# No other dependencies need to be declared manually
+# Because the modules do so declaratively
+container.register_module(ApplicationModule)
+
+container.resolve(Application).run()
+```
+
+### Singletons
+
+```python
+# Both dependencies are of type `str`
+container.register_instance('/tmp', name='tmp_dir')
+container.register_instance('/home/garciat', tmp='user_dir')
+
+# Disambiguate with name
+container.resolve(str, name='tmp_dir')
+```
+
+## Usage
 
 ```python
 from gean import Container, includes
@@ -63,32 +158,6 @@ def _main():
 if __name__ == '__main__':
   _main()
 ```
-
-## Requirements
-
-`gean`, like Spring, relies on types and signatures to build and resolve the dependency graph.
-
-Required language features: 
-  - [PEP 484 - Type Hints](https://www.python.org/dev/peps/pep-0484/) (Python 3.5+)
-  - [PEP 526 - Syntax for Variable Annotations](https://www.python.org/dev/peps/pep-0526/) (Python 3.6+)
-
-## Design
-
-### Dependency registration
-
-Each dependency of type `T` is registered not only as `T` but also as all of its implemented interfaces throguh its inheritance hierarchy.
-
-Dependencies may be explicitly named if multiple of the same type are needed.
-
-### Dependency kinds
-
-**Instances**: the provided type is `type(instance)`
-
-**Classes**: the provided type is `cls` itself
-
-**Callables**: the provided type is `get_type_hints(callable)['return']`
-
-**Modules**: for each public method of the module `m`, the provided type is `get_type_hints(m)['return']`. Additionally, each dependency is automatically _named_ after the module method that provides it.
 
 ## History
 
