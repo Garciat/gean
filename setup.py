@@ -2,12 +2,15 @@
 
 import setuptools
 
-with open("README.md", "r") as fh:
-    long_description = fh.read()
+with open('VERSION', 'r') as f:
+    version = f.read()
+
+with open('README.md', 'r') as f:
+    long_description = f.read()
 
 setuptools.setup(
     name="gean",
-    version="0.0.7",
+    version=version,
     author="Gabriel Garcia",
     author_email="me@garciat.com",
     description="A minimal IOC container inspired by Spring",
