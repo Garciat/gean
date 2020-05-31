@@ -10,6 +10,7 @@ from typing import Generic
 from typing import Iterable
 from typing import List
 from typing import Optional
+from typing import Set
 from typing import Tuple
 from typing import Type
 from typing import TypeVar
@@ -18,14 +19,14 @@ from typing import cast
 from typing import get_type_hints
 
 
-__all__ = ['Container', 'includes']
+__all__ = [
+  'Container',
+  'includes',
+]
 
 
 _C = TypeVar('_C')
 _T = TypeVar('_T')
-
-
-class _Unreachable(Exception): pass
 
 
 def get_constructor(cls: Type[_T]) -> Callable[..., _T]:
@@ -58,6 +59,12 @@ class Provider(ABC, Generic[_T]):
   @abstractmethod
   def provide(self, resolver: Resolver) -> _T: ...
 
+  @abstractmethod
+  def __hash__(self) -> int: ...
+
+  @abstractmethod
+  def __eq__(self, other: object) -> bool: ...
+
 
 def kwargs_for_annotations(resolver: Resolver, annotations: Dict[str, type]) -> Dict[str, Any]:
   kwargs: Dict[str, type] = {}
@@ -84,6 +91,12 @@ class InstanceProvider(Generic[_T], Provider[_T]):
   def provide(self, resolver: Resolver) -> _T:
     return self._instance
 
+  def __hash__(self) -> int:
+    return hash(self._instance)
+
+  def __eq__(self, other: object) -> bool:
+    return isinstance(other, InstanceProvider) and self._instance == other._instance
+
 
 class CallableProvider(Generic[_T], Provider[_T]):
 
@@ -100,6 +113,12 @@ class CallableProvider(Generic[_T], Provider[_T]):
 
   def provide(self, resolver: Resolver) -> _T:
     return self._callable(**kwargs_for_annotations(resolver, self._annotations))
+
+  def __hash__(self) -> int:
+    return hash(self._callable)
+
+  def __eq__(self, other: object) -> bool:
+    return isinstance(other, CallableProvider) and self._callable == other._callable
 
 
 class AutowiredClassProvider(Generic[_T], Provider[_T]):
@@ -122,6 +141,12 @@ class AutowiredClassProvider(Generic[_T], Provider[_T]):
 
     return instance
 
+  def __hash__(self) -> int:
+    return hash(self._cls)
+
+  def __eq__(self, other: object) -> bool:
+    return isinstance(other, AutowiredClassProvider) and self._cls == other._cls
+
 
 class ConstructorClassProvider(Generic[_T], Provider[_T]):
 
@@ -139,6 +164,12 @@ class ConstructorClassProvider(Generic[_T], Provider[_T]):
   def provide(self, resolver: Resolver) -> _T:
     annotations = get_type_hints(self._constructor)
     return self._constructor(**kwargs_for_annotations(resolver, annotations))
+
+  def __hash__(self) -> int:
+    return hash(self._cls)
+
+  def __eq__(self, other: object) -> bool:
+    return isinstance(other, ConstructorClassProvider) and self._cls == other._cls
 
 
 class ModuleMethodProvider(Generic[_C, _T], Provider[_T]):
@@ -160,6 +191,13 @@ class ModuleMethodProvider(Generic[_C, _T], Provider[_T]):
     method = cast(Callable[..., _T], getattr(module, method_name))
     annotations = get_type_hints(method)
     return method(**kwargs_for_annotations(resolver, annotations))
+
+  def __hash__(self) -> int:
+    return hash((self._module_cls, self._unbound_method))
+
+  def __eq__(self, other: object) -> bool:
+    return isinstance(other, ModuleMethodProvider) \
+      and (self._module_cls, self._unbound_method) == (other._module_cls, other._unbound_method)
 
 
 class CacheSentinel: pass
@@ -186,6 +224,12 @@ class CachedProvider(Generic[_T], Provider[_T]):
       return instance
     else:
       return self._instance
+
+  def __hash__(self) -> int:
+    return hash(self._subject)
+
+  def __eq__(self, other: object) -> bool:
+    return isinstance(other, CachedProvider) and self._subject == other._subject
 
 
 class DependencyModuleSupport:
@@ -232,12 +276,19 @@ class includes:
 class ResolutionError(Exception): pass
 
 
-class RegistrationError(Exception): pass
+class MissingDependencyError(ResolutionError):
+  def __init__(self, interface: type, name: Optional[str]):
+    super().__init__('missing dependency name={!r} interface={!r}'.format(name, interface))
+
+
+class AmbiguousDependencyError(ResolutionError):
+  def __init__(self, interface: type, name: Optional[str]):
+    super().__init__('ambiguous dependency name={!r} interface={!r}'.format(name, interface))
 
 
 class Container(Resolver):
 
-  _providers: Dict[type, Dict[Optional[str], Provider[Any]]]
+  _providers: Dict[type, Dict[Optional[str], Set[Provider[Any]]]]
 
   def __init__(self) -> None:
     self._providers = {}
@@ -259,16 +310,12 @@ class Container(Resolver):
     self.register_class(cls, name=None)
 
     for item in includes.read(cls):
-      try:
-        if DependencyModuleSupport.is_module(item):
-          self.register_module(item)
-        elif inspect.isclass(item):
-          self.register_class(item)
-        else:
-          raise TypeError('included item cannot be handled')
-      except RegistrationError:
-        # includes are declarative; dupes are fine for only modules & classes
-        pass
+      if DependencyModuleSupport.is_module(item):
+        self.register_module(item)
+      elif inspect.isclass(item):
+        self.register_class(item)
+      else:
+        raise TypeError('Module {} includes an item that cannot be handled'.format(cls))
 
     for name, method in DependencyModuleSupport.get_methods(cls):
       self.register(ModuleMethodProvider(cls, method), name=name)
@@ -279,24 +326,31 @@ class Container(Resolver):
       self._add(interface, name, cached_provider)
 
   def _add(self, interface: type, name: Optional[str], provider: Provider[_T]) -> None:
-    named_providers = self._providers.setdefault(interface, {})
-    if named_providers.setdefault(name, provider) is not provider:
-      raise RegistrationError('provider already registered')
+    for_interface: Dict[Optional[str], Set[Provider[_T]]] = self._interface_providers(interface)
+    for_name = for_interface.setdefault(name, set())
+    for_name.add(provider)
 
-  def resolve(self, interface: Type[_T], *, name: Optional[str]=None) -> _T:
-    named_providers = cast(Dict[Optional[str], Provider[_T]], self._providers.setdefault(interface, {}))
+  def resolve(self, interface: Type[_T], *, name: Optional[str] = None) -> _T:
+    candidates: Set[Provider[_T]] = set(self._get_candidates(interface, name))
 
-    if len(named_providers) == 0:
-      raise ResolutionError('missing dependency name={!r} interface={!r}'.format(name, interface))
-    elif len(named_providers) == 1:
-      # name doesn't matter for unique providers
-      for provider in named_providers.values():
+    if len(candidates) == 0:
+      raise AmbiguousDependencyError(interface, name)
+    elif len(candidates) == 1:
+      for provider in candidates:
         return provider.provide(self)
-      raise _Unreachable
+      raise Exception('unreachable')
     else:
-      if name is None:
-        raise ResolutionError('ambiguous dependency interface={!r}'.format(interface))
-      elif name not in named_providers:
-        raise ResolutionError('missing dependency name={!r} interface={!r}'.format(name, interface))
-      else:
-        return named_providers[name].provide(self)
+      raise AmbiguousDependencyError(interface, name)
+
+  def _get_candidates(self, interface: Type[_T], name: Optional[str]) -> Iterable[Provider[_T]]:
+    for_interface = self._interface_providers(interface)
+
+    print(interface, for_interface)
+
+    for available_name, for_name in for_interface.items():
+      for provider in for_name:
+        if name is None or available_name is None or name == available_name:
+          yield provider
+
+  def _interface_providers(self, interface: Type[_T]) -> Dict[Optional[str], Set[Provider[_T]]]:
+    return cast(Dict[Optional[str], Set[Provider[_T]]], self._providers.setdefault(interface, {}))
