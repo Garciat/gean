@@ -1,5 +1,6 @@
 [![PyPI version](https://badge.fury.io/py/gean.svg)](https://badge.fury.io/py/gean)
 [![Build Status](https://travis-ci.org/Garciat/gean.svg?branch=master)](https://travis-ci.org/Garciat/gean)
+[![codecov](https://codecov.io/gh/Garciat/gean/branch/master/graph/badge.svg)](https://codecov.io/gh/Garciat/gean)
 
 # gean
 
