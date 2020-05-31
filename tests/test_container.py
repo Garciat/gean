@@ -1,6 +1,7 @@
 from typing import Generic, TypeVar
 
 from gean import AmbiguousDependencyError, Container, MissingDependencyError, includes
+
 import pytest  # type: ignore
 
 
@@ -51,6 +52,22 @@ def test_constructor_class() -> None:
   b = container.resolve(B)
 
   assert b._a is a
+
+
+def test_callable() -> None:
+  class A: pass
+  class B: pass
+
+  def hello(a: A) -> B:
+    return B()
+
+  container = Container()
+  container.register_class(A)
+  container.register_callable(hello)
+
+  b = container.resolve(B)
+
+  assert isinstance(b, B)
 
 
 def test_hierarchy() -> None:
