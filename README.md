@@ -15,7 +15,7 @@ python3 -m pip install gean
 
 `gean`, like Spring, relies on types and signatures to build and resolve the dependency graph.
 
-Required language features: 
+Required language features:
   - [PEP 484 - Type Hints](https://www.python.org/dev/peps/pep-0484/) (Python 3.5+)
   - [PEP 526 - Syntax for Variable Annotations](https://www.python.org/dev/peps/pep-0526/) (Python 3.6+)
 
@@ -30,6 +30,7 @@ class A: pass
 class B(Generic[T]): pass
 class C(A, B[int]): pass
 
+container = Container()
 container.register_class(C)
 
 # All of these return the same instance of C
@@ -50,6 +51,7 @@ class Manager:
   def run(self):
     self.subject.work()
 
+container = Container()
 # Order of registration does not matter
 container.register_class(Manager)
 container.register_class(Subject)
@@ -89,6 +91,7 @@ def Application:
 )
 class ApplicationModule: pass
 
+container = Container()
 # No other dependencies need to be declared manually
 # Because the modules do so declaratively
 container.register_module(ApplicationModule)
@@ -99,65 +102,13 @@ container.resolve(Application).run()
 ### Singletons
 
 ```python
+container = Container()
 # Both dependencies are of type `str`
 container.register_instance('/tmp', name='tmp_dir')
 container.register_instance('/home/garciat', tmp='user_dir')
 
 # Disambiguate with name
 container.resolve(str, name='tmp_dir')
-```
-
-## Usage
-
-```python
-from gean import Container, includes
-
-class Michael:
-  def speak(self):
-    return 'what'
-
-@includes(Michael)
-class WhateverModule:
-  def whatever(self) -> int:
-    return 42
-
-  def world(self) -> int:
-    return 100
-
-class Application:
-  my_dir: str
-  whatever: 'int'
-  world: int
-  m: Michael
-
-  def start(self):
-    print(self.my_dir)
-    print(self.whatever)
-    print(self.world)
-    print(self.m.speak())
-
-@includes(
-  WhateverModule,
-  Application,
-  Michael,
-)
-class ApplicationModule:
-  config_dir: str
-
-  def another_dir(self) -> str:
-    return self.config_dir + '/another'
-
-  def my_dir(self, another_dir: 'str') -> str:
-    return another_dir + '/ñe'
-
-def _main():
-  container = Container()
-  container.register_instance('/etc/hello/world', name='config_dir')
-  container.register_module(ApplicationModule)
-  container.resolve(Application).start()
-
-if __name__ == '__main__':
-  _main()
 ```
 
 ## History
