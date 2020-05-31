@@ -16,13 +16,13 @@ class WhateverModule:
   def whatever(self) -> int:
     return 42
 
-  def poop(self) -> int:
+  def world(self) -> int:
     return 100
 
 class Application:
   my_dir: str
   whatever: 'int'
-  poop: int
+  world: int
   m: Michael
 
   def start(self):
