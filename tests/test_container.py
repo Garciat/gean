@@ -13,6 +13,18 @@ def test_missing() -> None:
     container.resolve(str)
 
 
+def test_cache() -> None:
+  class A: pass
+
+  container = Container()
+  container.register_class(A)
+
+  a1 = container.resolve(A)
+  a2 = container.resolve(A)
+
+  assert a1 is a2
+
+
 def test_autowired_class() -> None:
   class Autowired:
     s: str
@@ -21,6 +33,24 @@ def test_autowired_class() -> None:
   container.register_instance('hello')
   container.register_class(Autowired)
   container.resolve(Autowired)
+
+
+def test_constructor_class() -> None:
+  class A: pass
+  class B:
+    def __init__(self, a: A):
+      self._a = a
+
+  str_instance = 'hello'
+
+  container = Container()
+  container.register_class(A)
+  container.register_class(B)
+
+  a = container.resolve(A)
+  b = container.resolve(B)
+
+  assert b._a is a
 
 
 def test_hierarchy() -> None:
