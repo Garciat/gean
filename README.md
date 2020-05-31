@@ -39,9 +39,11 @@ container = Container()
 container.register_class(C)
 
 # All of these return the same instance of C
-container.resolve(A)
-container.resolve(B[int])
-container.resolve(C)
+c1 = container.resolve(A)
+c2 = container.resolve(B[int])
+c3 = container.resolve(C)
+assert c1 is c2 is c3
+assert isinstance(c1, C)
 ```
 
 ### Caching
