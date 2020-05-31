@@ -2,6 +2,7 @@ from abc import ABC
 from abc import abstractmethod
 from abc import abstractproperty
 import inspect
+import typing
 from typing import Any
 from typing import Callable
 from typing import ClassVar
@@ -16,7 +17,6 @@ from typing import Type
 from typing import TypeVar
 from typing import Union
 from typing import cast
-from typing import get_type_hints
 
 
 __all__ = [
@@ -105,7 +105,7 @@ class CallableProvider(Generic[_T], Provider[_T]):
 
   def __init__(self, kallable: Callable[..., _T]):
     self._callable = kallable
-    self._annotations = get_type_hints(self._callable)
+    self._annotations = typing.get_type_hints(self._callable)
 
   @property
   def typeof(self) -> Type[_T]:
@@ -133,7 +133,7 @@ class AutowiredClassProvider(Generic[_T], Provider[_T]):
     return self._cls
 
   def provide(self, resolver: Resolver) -> _T:
-    annotations = get_type_hints(self._cls)
+    annotations = typing.get_type_hints(self._cls)
     instance = self._cls()
 
     for name, annotation in annotations.items():
@@ -162,7 +162,7 @@ class ConstructorClassProvider(Generic[_T], Provider[_T]):
     return self._cls
 
   def provide(self, resolver: Resolver) -> _T:
-    annotations = get_type_hints(self._constructor)
+    annotations = typing.get_type_hints(self._constructor)
     return self._constructor(**kwargs_for_annotations(resolver, annotations))
 
   def __hash__(self) -> int:
@@ -183,13 +183,13 @@ class ModuleMethodProvider(Generic[_C, _T], Provider[_T]):
 
   @property
   def typeof(self) -> Type[_T]:
-    return cast(Type[_T], get_type_hints(self._unbound_method)['return'])
+    return cast(Type[_T], typing.get_type_hints(self._unbound_method)['return'])
 
   def provide(self, resolver: Resolver) -> _T:
     module = resolver.resolve(self._module_cls)
     method_name = getattr(self._unbound_method, '__name__')
     method = cast(Callable[..., _T], getattr(module, method_name))
-    annotations = get_type_hints(method)
+    annotations = typing.get_type_hints(method)
     return method(**kwargs_for_annotations(resolver, annotations))
 
   def __hash__(self) -> int:
@@ -282,8 +282,8 @@ class MissingDependencyError(ResolutionError):
 
 
 class AmbiguousDependencyError(ResolutionError):
-  def __init__(self, interface: type, name: Optional[str]):
-    super().__init__('ambiguous dependency name={!r} interface={!r}'.format(name, interface))
+  def __init__(self, interface: type, name: Optional[str], candidates: Set[Provider[Any]]):
+    super().__init__('ambiguous dependency name={!r} interface={!r} candidates={!r}'.format(name, interface, candidates))
 
 
 class Container(Resolver):
@@ -334,13 +334,13 @@ class Container(Resolver):
     candidates: Set[Provider[_T]] = set(self._get_candidates(interface, name))
 
     if len(candidates) == 0:
-      raise AmbiguousDependencyError(interface, name)
+      raise MissingDependencyError(interface, name)
     elif len(candidates) == 1:
       for provider in candidates:
         return provider.provide(self)
       raise Exception('unreachable')
     else:
-      raise AmbiguousDependencyError(interface, name)
+      raise AmbiguousDependencyError(interface, name, candidates)
 
   def _get_candidates(self, interface: Type[_T], name: Optional[str]) -> Iterable[Provider[_T]]:
     for_interface = self._interface_providers(interface)

@@ -1,5 +1,17 @@
-from gean import AmbiguousDependencyError, Container, includes
+from typing import Generic, TypeVar
+
+from gean import AmbiguousDependencyError, Container, MissingDependencyError, includes
 import pytest  # type: ignore
+
+
+_T = TypeVar('_T')
+
+
+def test_missing() -> None:
+  container = Container()
+  with pytest.raises(MissingDependencyError):
+    container.resolve(str)
+
 
 def test_autowired_class() -> None:
   class Autowired:
