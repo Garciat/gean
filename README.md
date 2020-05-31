@@ -125,7 +125,7 @@ A **module** is a class whose name ends in `Module`.
 
 A module may use `@includes` to declaratively register other classes or modules.
 
-A module may use public method to create dependencies programmatically.
+A module may use public methods to create dependencies programmatically.
 
 ```python
 from gean import Container, includes
