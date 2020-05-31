@@ -1,6 +1,8 @@
-/dist/
-/build/
 /.eggs/
+/build/
+/dist/
+/htmlcov/
 *.egg-info
-__pycache__
+.coverage
 .mypy_cache
+__pycache__

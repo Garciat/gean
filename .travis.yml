@@ -3,7 +3,12 @@ python:
   - "3.6"
   - "3.7"
   - "3.8"
+before_install:
+  - python --version
+  - pip install codecov
 install:
   - python setup.py install
 script:
   - python setup.py test
+after_success:
+  - codecov
