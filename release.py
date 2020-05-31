@@ -29,6 +29,8 @@ def assert_tests_pass():
 
 
 def _main():
+  subprocess.call(['git', 'fetch', 'origin', 'master'])
+
   assert_clean_working_tree()
 
   assert_tests_pass()
@@ -53,6 +55,9 @@ def _main():
   subprocess.call(['git', 'commit', '-am', 'Prepare for release'])
 
   subprocess.call(['python3', 'setup.py', 'sdist', 'bdist_wheel'])
+
+  if input('Upload? ').lower() != 'y':
+    exit(1)
 
   subprocess.call(['python3', '-m', 'twine', 'upload', '--repository', 'pypi', 'dist/*'])
 
