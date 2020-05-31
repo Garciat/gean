@@ -26,8 +26,13 @@ Required language features:
 A dependency of a given type `X` is exposed not only as `X` but also all of its super types, including generic interfaces.
 
 ```python
+from gean import Container
+from typing import Generic, TypeVar
+
+_T = TypeVar('_T')
+
 class A: pass
-class B(Generic[T]): pass
+class B(Generic[_T]): pass
 class C(A, B[int]): pass
 
 container = Container()
@@ -42,12 +47,14 @@ container.resolve(C)
 ### Autowiring
 
 ```python
+from gean import Container
+
 class Subject:
   def work(self):
     print('working')
 
 class Manager:
-  subject: Subject  # will be autowired
+  subject: 'Subject'  # will be autowired
   def run(self):
     self.subject.work()
 
@@ -67,6 +74,8 @@ A **module** is a class whose name ends in `Module`.
 A module may declaratively `@include` other classes or modules.
 
 ```python
+from gean import Container, includes
+
 class PingService:
   def ping(self, addr): ...
 
@@ -102,6 +111,8 @@ container.resolve(Application).run()
 ### Singletons
 
 ```python
+from gean import Container
+
 container = Container()
 # Both dependencies are of type `str`
 container.register_instance('/tmp', name='tmp_dir')
