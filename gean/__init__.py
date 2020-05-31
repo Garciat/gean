@@ -66,7 +66,6 @@ def is_generic_type(t: type) -> bool:
 def linearize_type_hierarchy(root: type) -> Iterable[type]:
   if root is object:
     return
-  print(root, not has_unbound_type_args(root))
   if not has_unbound_type_args(root):
     yield root
   for child in generic_bases(root):
@@ -354,7 +353,6 @@ class Container(Resolver):
   def register(self, provider: Provider[_T], *, name: Optional[str]=None) -> None:
     cached_provider = CachedProvider(provider)
     hierarchy = list(linearize_type_hierarchy(provider.typeof))
-    print(hierarchy)
     for interface in hierarchy:
       self._add(interface, name, cached_provider)
 
