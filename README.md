@@ -5,6 +5,12 @@
 
 A minimal IOC container inspired by Spring.
 
+## Install
+
+```
+python3 -m pip install gean
+```
+
 ## Example
 
 ```python
