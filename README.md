@@ -28,7 +28,7 @@ class Application:
   def start(self):
     print(self.my_dir)
     print(self.whatever)
-    print(self.poop)
+    print(self.world)
     print(self.m.speak())
 
 @includes(
