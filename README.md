@@ -32,7 +32,7 @@ class C(A, B[int]): pass
 
 container.register_class(C)
 
-# All of these return an instance of C
+# All of these return the same instance of C
 container.resolve(A)
 container.resolve(B[int])
 container.resolve(C)
