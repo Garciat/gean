@@ -65,6 +65,10 @@ assert a1 is a2
 
 ### Autowiring
 
+Dependencies can be autowired if a class does not declare an explicit constructor.
+
+Field names can disambiguate same-type dependencies.
+
 ```python
 from gean import Container
 
@@ -87,6 +91,10 @@ container.resolve(Manager).run()
 ```
 
 ### Constructor wiring
+
+If a class defines an explicit constructor, dependencies will be passed as arguments.
+
+Parameter names can disambiguate same-type dependencies.
 
 ```python
 from gean import Container
@@ -114,7 +122,7 @@ container.resolve(Manager).run()
 
 A **module** is a class whose name ends in `Module`.
 
-A module may declaratively `@includes` other classes or modules.
+A module may use `@includes` to declaratively register other classes or modules.
 
 A module may use public method to create dependencies programmatically.
 
@@ -163,6 +171,8 @@ container.resolve(Application).run()
 ```
 
 ### Singletons
+
+Dependencies can be explicitly named so that disambiguation is possible.
 
 ```python
 from gean import Container
