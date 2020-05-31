@@ -37,14 +37,45 @@ def is_custom_constructor(constructor: Callable[..., _T]) -> bool:
   return constructor is not object.__init__
 
 
+def generic_arguments(t: type) -> Optional[Tuple[type, ...]]:
+  return cast(Optional[Tuple[type, ...]], getattr(t, '__args__', None))
+
+
+def generic_parameters(t: type) -> Optional[Tuple[type, ...]]:
+  return cast(Optional[Tuple[type, ...]], getattr(t, '__parameters__', None))
+
+
+def generic_bases(t: type) -> Tuple[type, ...]:
+  return cast(Tuple[type, ...], getattr(t, '__orig_bases__', ()))
+
+
+def has_unbound_type_args(t: type) -> bool:
+  args = generic_parameters(t)
+  if args is None:
+    return False
+  elif len(args) == 0:
+    return False
+  else:
+    return True
+
+
+def is_generic_type(t: type) -> bool:
+  return generic_parameters(t) is not None
+
+
 def linearize_type_hierarchy(root: type) -> Iterable[type]:
   if root is object:
     return
-  yield root
-  for node in inspect.getclasstree([root]):
-    if isinstance(node, tuple):
-      parent, _ = node
-      yield from linearize_type_hierarchy(parent)
+  print(root, not has_unbound_type_args(root))
+  if not has_unbound_type_args(root):
+    yield root
+  for child in generic_bases(root):
+    yield from linearize_type_hierarchy(child)
+  if not is_generic_type(root):
+    for node in inspect.getclasstree([root]):
+      if isinstance(node, tuple):
+        parent, _ = node
+        yield from linearize_type_hierarchy(parent)
 
 
 class Resolver(ABC):
@@ -322,7 +353,9 @@ class Container(Resolver):
 
   def register(self, provider: Provider[_T], *, name: Optional[str]=None) -> None:
     cached_provider = CachedProvider(provider)
-    for interface in linearize_type_hierarchy(provider.typeof):
+    hierarchy = list(linearize_type_hierarchy(provider.typeof))
+    print(hierarchy)
+    for interface in hierarchy:
       self._add(interface, name, cached_provider)
 
   def _add(self, interface: type, name: Optional[str], provider: Provider[_T]) -> None:

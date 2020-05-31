@@ -36,3 +36,12 @@ def test_hierarchy() -> None:
 
   with pytest.raises(AmbiguousDependencyError):
     container.resolve(A)
+
+
+def test_generic_base() -> None:
+  class A(Generic[_T]): pass
+  class B(A[int]): pass
+
+  container = Container()
+  container.register_class(B)
+  container.resolve(A[int])
