@@ -80,3 +80,29 @@ def test_generic_base() -> None:
   assert isinstance(c, C)
   assert container.resolve(A) is c
   assert container.resolve(B[int]) is c
+
+
+def test_generic_return() -> None:
+  class A(Generic[_T]): pass
+  class B(A[int]): pass
+  class C(A[str]): pass
+
+  class XModule:
+    def b(self) -> A[int]:
+      return B()
+    def c(self) -> A[str]:
+      return C()
+
+  container = Container()
+  container.register_module(XModule)
+
+  a_int = container.resolve(A[int])
+  assert isinstance(a_int, B)
+
+  a_str = container.resolve(A[str])
+  assert isinstance(a_str, C)
+
+  # `A` is a generic type with unbound type parameters
+  # so it is not registered as an interface for B or C
+  with pytest.raises(MissingDependencyError):
+    container.resolve(A)

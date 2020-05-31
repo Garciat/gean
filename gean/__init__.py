@@ -49,6 +49,10 @@ def generic_bases(t: type) -> Tuple[type, ...]:
   return cast(Tuple[type, ...], getattr(t, '__orig_bases__', ()))
 
 
+def generic_origin(t: type) -> type:
+  return cast(type, getattr(t, '__origin__'))
+
+
 def has_unbound_type_args(t: type) -> bool:
   args = generic_parameters(t)
   if args is None:
@@ -60,21 +64,37 @@ def has_unbound_type_args(t: type) -> bool:
 
 
 def is_generic_type(t: type) -> bool:
-  return generic_parameters(t) is not None
+  return generic_arguments(t) is not None
 
 
-def linearize_type_hierarchy(root: type) -> Iterable[type]:
-  if root is object:
-    return
-  if not has_unbound_type_args(root):
-    yield root
-  for child in generic_bases(root):
-    yield from linearize_type_hierarchy(child)
-  if not is_generic_type(root):
-    for node in inspect.getclasstree([root]):
-      if isinstance(node, tuple):
-        parent, _ = node
-        yield from linearize_type_hierarchy(parent)
+def is_generic_alias(t: type) -> bool:
+  # ideally: isinstance(t, typing._GenericAlias)
+  return is_generic_type(t) and not has_unbound_type_args(t)
+
+
+def generic_tree(t: type) -> Iterable[type]:
+  if is_generic_alias(t):
+    yield t
+  for child in generic_bases(t):
+    yield from generic_tree(child)
+
+
+def linearize_type_hierarchy(t: type) -> Iterable[type]:
+  for child in generic_tree(t):
+    yield child
+  if is_generic_alias(t):
+    # Generic aliases (saturated generic types) do not have an mro
+    # Instead, the mro is found in the 'origin type' (the generic type itself)
+    t = generic_origin(t)
+  for child in inspect.getmro(t):
+    if child in (object, Generic):
+      # These bases are not useful interfaces
+      continue
+    elif has_unbound_type_args(child):
+      # Do not expose generic types, because they are not complete types
+      continue
+    else:
+      yield child
 
 
 class Resolver(ABC):
