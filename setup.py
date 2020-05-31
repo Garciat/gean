@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="gean",
-    version="0.0.2",
+    version="0.0.3",
     author="Gabriel Garcia",
     author_email="me@garciat.com",
     description="A minimal IOC container inspired by Spring",
