@@ -1,3 +1,4 @@
+import sys
 from typing import Generic, TypeVar
 
 from gean import AmbiguousDependencyError, Container, MissingDependencyError, includes
@@ -52,6 +53,27 @@ def test_constructor_class() -> None:
   b = container.resolve(B)
 
   assert b._a is a
+
+
+if sys.version_info >= (3, 7):
+  def test_constructor_dataclass() -> None:
+    from dataclasses import dataclass
+
+    class A: pass
+    @dataclass(frozen=True)
+    class B:
+      a: A
+
+    str_instance = 'hello'
+
+    container = Container()
+    container.register_class(A)
+    container.register_class(B)
+
+    a = container.resolve(A)
+    b = container.resolve(B)
+
+    assert b.a is a
 
 
 def test_callable() -> None:
