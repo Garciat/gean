@@ -74,11 +74,57 @@ def is_generic_alias(t: type) -> bool:
   return is_generic_type(t) and not has_unbound_type_args(t)
 
 
+if sys.version_info < (3, 7):
+  def instantiate_generic(t: type, tys: Iterable[type]) -> type:
+    subscript = cast(Callable[..., type], getattr(t, '__getitem__'))
+    return subscript(tuple(tys))
+else:
+  def instantiate_generic(t: type, tys: Iterable[type]) -> type:
+    subscript = cast(Callable[..., type], getattr(t, '__class_getitem__'))
+    return subscript(tuple(tys))
+
+
+def bind_tyvar(target: type, tyvar: Any, ty: type) -> type:
+  args = generic_arguments(target) or ()
+
+  replaced_args = []
+  for arg in args:
+    if arg == tyvar:
+      replaced_args.append(ty)
+    else:
+      replaced_args.append(arg)
+
+  assert tyvar not in replaced_args
+
+  tycon = generic_origin(target)
+  return instantiate_generic(tycon, replaced_args)
+
+
+def bound_generic_bases(t: type) -> Iterable[type]:
+  g = generic_origin(t)
+  g_bases = generic_bases(g)
+  g_params = generic_parameters(g) or ()
+  t_args = generic_arguments(t) or ()
+
+  for base in g_bases:
+    if is_generic_type(base):
+      if generic_origin(base) is cast(type, Generic):
+        continue
+
+      for tyvar, ty in zip(g_params, t_args):
+        base = bind_tyvar(base, tyvar, ty)
+
+      yield base
+
+
 def generic_tree(t: type) -> Iterable[type]:
   if is_generic_alias(t):
     yield t
-  for child in generic_bases(t):
-    yield from generic_tree(child)
+    for child in bound_generic_bases(t):
+      yield from generic_tree(child)
+  else:
+    for child in generic_bases(t):
+      yield from generic_tree(child)
 
 
 def linearize_type_hierarchy(t: type) -> Iterable[type]:
@@ -100,8 +146,10 @@ def linearize_type_hierarchy(t: type) -> Iterable[type]:
 
 
 def is_subtype(lhs: type, rhs: type) -> bool:
-  assert not has_unbound_type_args(lhs)
-  assert not has_unbound_type_args(rhs)
+  if has_unbound_type_args(lhs):
+    raise TypeError('type has unbound type arguments {}'.format(lhs))
+  if has_unbound_type_args(rhs):
+    raise TypeError('type has unbound type arguments {}'.format(rhs))
 
   if is_generic_alias(rhs):
     for lhs_super in linearize_type_hierarchy(lhs):
