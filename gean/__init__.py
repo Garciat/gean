@@ -443,9 +443,8 @@ class Container(Resolver):
     if len(candidates) == 0:
       raise MissingDependencyError(interface, name)
     elif len(candidates) == 1:
-      for provider in candidates:
-        return provider.provide(self)
-      raise Exception('unreachable')
+      provider = next(iter(candidates))
+      return provider.provide(self)
     else:
       raise AmbiguousDependencyError(interface, name, candidates)
 
