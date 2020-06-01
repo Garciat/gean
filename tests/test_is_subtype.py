@@ -2,11 +2,27 @@ from typing import Generic, TypeVar
 
 from gean import is_subtype
 
+import pytest  # type: ignore
+
 
 _T = TypeVar('_T')
 _U = TypeVar('_U')
 _Tco = TypeVar('_Tco', covariant=True)
 _Tcontra = TypeVar('_Tcontra', contravariant=True)
+
+
+def test_identity() -> None:
+  assert is_subtype(str, str)
+
+
+def test_unbound() -> None:
+  class G(Generic[_T]): pass
+
+  with pytest.raises(TypeError):
+    is_subtype(G, str)
+
+  with pytest.raises(TypeError):
+    is_subtype(str, G)
 
 
 def test_generic_with_normal_base() -> None:
