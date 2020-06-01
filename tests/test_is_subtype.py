@@ -8,6 +8,13 @@ _Tco = TypeVar('_Tco', covariant=True)
 _Tcontra = TypeVar('_Tcontra', contravariant=True)
 
 
+def test_generic_with_normal_base() -> None:
+  class A: pass
+  class B(Generic[_T], A): pass
+
+  assert is_subtype(B[int], A)
+
+
 def test_disjoint() -> None:
   class G(Generic[_T]): pass
   class H(Generic[_T]): pass
