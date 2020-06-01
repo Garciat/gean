@@ -61,6 +61,23 @@ def test_constructor_class() -> None:
   assert b.a is container.resolve(A)
 
 
+def test_constructor_class_kw_only() -> None:
+  class A: pass
+  class B:
+    def __init__(self, *, a: A):
+      self.a = a
+
+  container = Container()
+  container.register_class(A)
+  container.register_class(B)
+
+  b = container.resolve(B)
+
+  assert isinstance(b, B)
+  assert isinstance(b.a, A)
+  assert b.a is container.resolve(A)
+
+
 if sys.version_info >= (3, 7):
   def test_constructor_dataclass() -> None:
     from dataclasses import dataclass
@@ -105,6 +122,27 @@ def test_callable() -> None:
   assert isinstance(b.a, A)
   assert b.a is container.resolve(A)
   assert b.s is secret
+
+
+def test_callable_kw_only() -> None:
+  class A: pass
+  class B:
+    a: A
+
+  def hello(*, a: A) -> B:
+    b = B()
+    b.a = a
+    return b
+
+  container = Container()
+  container.register_class(A)
+  container.register_callable(hello)
+
+  b = container.resolve(B)
+
+  assert isinstance(b, B)
+  assert isinstance(b.a, A)
+  assert b.a is container.resolve(A)
 
 
 def test_abc() -> None:
