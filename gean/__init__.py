@@ -2,6 +2,7 @@ from abc import ABC
 from abc import abstractmethod
 from abc import abstractproperty
 import inspect
+import itertools
 import typing
 from typing import Any
 from typing import Callable
@@ -29,6 +30,18 @@ _C = TypeVar('_C')
 _T = TypeVar('_T')
 
 
+class TyVarProxy:
+
+  ty_var: Any
+
+  def __init__(self, ty_var: Any):
+    self.ty_var = ty_var
+
+  @property
+  def is_covariant(self) -> bool:
+    return cast(bool, getattr(self.ty_var, '__covariant__', False))
+
+
 def get_constructor(cls: Type[_T]) -> Callable[..., _T]:
   return cast(Callable[..., _T], getattr(cls, '__init__'))
 
@@ -41,8 +54,8 @@ def generic_arguments(t: type) -> Optional[Tuple[type, ...]]:
   return cast(Optional[Tuple[type, ...]], getattr(t, '__args__', None))
 
 
-def generic_parameters(t: type) -> Optional[Tuple[type, ...]]:
-  return cast(Optional[Tuple[type, ...]], getattr(t, '__parameters__', None))
+def generic_parameters(t: type) -> Optional[Tuple[Any, ...]]:
+  return cast(Optional[Tuple[Any, ...]], getattr(t, '__parameters__', None))
 
 
 def generic_bases(t: type) -> Tuple[type, ...]:
@@ -72,9 +85,43 @@ def is_generic_alias(t: type) -> bool:
   return is_generic_type(t) and not has_unbound_type_args(t)
 
 
+def instantiate_generic(t: type, tys: Iterable[type]) -> type:
+  subscript = cast(Callable[..., type], getattr(t, '__class_getitem__'))
+  return subscript(*tys)
+
+
+def cartesian(xss: Iterable[Iterable[_T]]) -> Iterable[Tuple[_T, ...]]:
+  for row in itertools.product(*xss):
+    yield tuple(row)
+
+
+def generic_supertypes(t: type) -> Set[type]:
+  g = generic_origin(t)
+
+  t_args = generic_arguments(t) or ()
+  g_params = generic_parameters(g) or ()
+
+  tys_per_slot: List[Set[type]] = []
+  for ix, ty_var in enumerate(g_params):
+    bound_ty = t_args[ix]
+    slot_tys: Set[type]
+    if ty_var.__covariant__:
+      slot_tys = set(linearize_type_hierarchy(bound_ty))
+    else:
+      slot_tys = {bound_ty}
+    tys_per_slot.append(slot_tys)
+
+  g_types: Set[type] = set()
+  for tys in cartesian(tys_per_slot):
+    g_types.add(instantiate_generic(g, tys))
+
+  assert t in g_types
+  return g_types
+
+
 def generic_tree(t: type) -> Iterable[type]:
   if is_generic_alias(t):
-    yield t
+    yield from generic_supertypes(t)
   for child in generic_bases(t):
     yield from generic_tree(child)
 
