@@ -1,3 +1,4 @@
+from abc import ABC
 from typing import Generic, TypeVar
 
 from gean import linearize_type_hierarchy
@@ -42,3 +43,10 @@ def test_generic_with_normal_base() -> None:
   class B(A[int]): pass
 
   assert set(linearize_type_hierarchy(B)) == {B, A[int], Z}
+
+
+def test_abc() -> None:
+  class A(ABC): pass
+  class B(A): pass
+
+  assert set(linearize_type_hierarchy(B)) == {B, A}

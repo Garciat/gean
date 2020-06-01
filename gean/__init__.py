@@ -80,6 +80,7 @@ def generic_tree(t: type) -> Iterable[type]:
 
 
 def linearize_type_hierarchy(t: type) -> Iterable[type]:
+  print(t)
   for child in generic_tree(t):
     yield child
   if is_generic_alias(t):
@@ -87,7 +88,7 @@ def linearize_type_hierarchy(t: type) -> Iterable[type]:
     # Instead, the mro is found in the 'origin type' (the generic type itself)
     t = generic_origin(t)
   for child in inspect.getmro(t):
-    if child in (object, Generic):
+    if child in (object, Generic, ABC):
       # These bases are not useful interfaces
       continue
     elif has_unbound_type_args(child):

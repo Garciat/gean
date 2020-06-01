@@ -1,3 +1,4 @@
+from abc import ABC
 import sys
 from typing import Generic, TypeVar
 
@@ -104,6 +105,18 @@ def test_callable() -> None:
   assert isinstance(b.a, A)
   assert b.a is container.resolve(A)
   assert b.s is secret
+
+
+def test_abc() -> None:
+  class A(ABC): pass
+  class B(A): pass
+
+  container = Container()
+  container.register_class(B)
+
+  b = container.resolve(A)
+
+  assert isinstance(b, B)
 
 
 def test_ambiguous_supertype() -> None:
