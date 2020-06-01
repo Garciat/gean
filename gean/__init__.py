@@ -335,6 +335,11 @@ class DependencyModuleSupport:
     return inspect.isclass(cls) and cls.__name__.endswith('Module')
 
   @staticmethod
+  def assert_module(cls: type) -> None:
+    if not DependencyModuleSupport.is_module(cls):
+      raise TypeError('{} is not a module: a <class> whose name ends in "Module"'.format(cls))
+
+  @staticmethod
   def get_methods(cls: type) -> Iterable[Tuple[str, Callable[..., Any]]]:
     for name in dir(cls):
       if name.startswith('_'):
@@ -346,28 +351,39 @@ class DependencyModuleSupport:
 
 class includes:
 
-  _PROP_NAME: ClassVar[str] = '_includes'
+  _PROP_NAME_MODULES: ClassVar[str] = '_includes_modules'
+  _PROP_NAME_CLASSES: ClassVar[str] = '_includes_classes'
 
-  _items: Tuple[type, ...]
+  _modules: List[type]
+  _classes: List[type]
 
   def __init__(self, *items: type):
-    self._items = items
+    self._modules = []
+    self._classes = []
+
+    for item in items:
+      if DependencyModuleSupport.is_module(item):
+        self._modules.append(item)
+      elif inspect.isclass(item):
+        self._classes.append(item)
+      else:
+        raise TypeError('includes must be modules or classes')
 
   def __call__(self, cls: type) -> type:
-    if not DependencyModuleSupport.is_module(cls):
-      raise TypeError('not a module')
+    DependencyModuleSupport.assert_module(cls)
 
-    self.write(cls, self._items)
+    setattr(cls, self._PROP_NAME_MODULES, self._modules)
+    setattr(cls, self._PROP_NAME_CLASSES, self._classes)
 
     return cls
 
   @classmethod
-  def write(cls, target: type, items: Tuple[type, ...]) -> None:
-    setattr(target, cls._PROP_NAME, items)
+  def read_modules(cls, target: type) -> List[type]:
+    return cast(List[type], getattr(target, cls._PROP_NAME_MODULES, []))
 
   @classmethod
-  def read(cls, target: type) -> Tuple[type, ...]:
-    return cast(Tuple[type, ...], getattr(target, cls._PROP_NAME, ()))
+  def read_classes(cls, target: type) -> List[type]:
+    return cast(List[type], getattr(target, cls._PROP_NAME_CLASSES, []))
 
 
 class ResolutionError(Exception): pass
@@ -406,13 +422,11 @@ class Container(Resolver):
   def register_module(self, cls: type) -> None:
     self.register_class(cls, name=None)
 
-    for item in includes.read(cls):
-      if DependencyModuleSupport.is_module(item):
-        self.register_module(item)
-      elif inspect.isclass(item):
-        self.register_class(item)
-      else:
-        raise TypeError('Module {} includes an item that cannot be handled'.format(cls))
+    for item in includes.read_modules(cls):
+      self.register_module(item)
+
+    for item in includes.read_classes(cls):
+      self.register_class(item)
 
     for name, method in DependencyModuleSupport.get_methods(cls):
       self.register(ModuleMethodProvider(cls, method), name=name)
