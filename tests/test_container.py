@@ -30,6 +30,23 @@ def test_cache() -> None:
   assert a1 is a2
 
 
+def test_re_register() -> None:
+  class A: pass
+  class XModule: pass
+  def func() -> int: pass
+  singleton = 'hello'
+
+  container = Container()
+  container.register_instance(singleton)
+  container.register_instance(singleton)
+  container.register_class(A)
+  container.register_class(A)
+  container.register_module(XModule)
+  container.register_module(XModule)
+  container.register_callable(func)
+  container.register_callable(func)
+
+
 def test_class_autowired() -> None:
   class A: pass
   class B:
