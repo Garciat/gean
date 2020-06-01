@@ -80,7 +80,6 @@ def generic_tree(t: type) -> Iterable[type]:
 
 
 def linearize_type_hierarchy(t: type) -> Iterable[type]:
-  print(t)
   for child in generic_tree(t):
     yield child
   if is_generic_alias(t):

@@ -28,7 +28,7 @@ def test_cache() -> None:
   assert a1 is a2
 
 
-def test_autowired_class() -> None:
+def test_class_autowired() -> None:
   class A: pass
   class B:
     a: A
@@ -44,7 +44,7 @@ def test_autowired_class() -> None:
   assert b.a is container.resolve(A)
 
 
-def test_constructor_class() -> None:
+def test_class_constructor() -> None:
   class A: pass
   class B:
     def __init__(self, a: A):
@@ -61,7 +61,7 @@ def test_constructor_class() -> None:
   assert b.a is container.resolve(A)
 
 
-def test_constructor_class_kw_only() -> None:
+def test_class_constructor_kw_only() -> None:
   class A: pass
   class B:
     def __init__(self, *, a: A):
@@ -137,6 +137,31 @@ def test_callable_kw_only() -> None:
   container = Container()
   container.register_class(A)
   container.register_callable(hello)
+
+  b = container.resolve(B)
+
+  assert isinstance(b, B)
+  assert isinstance(b.a, A)
+  assert b.a is container.resolve(A)
+
+
+def test_module_constructor() -> None:
+  class A: pass
+  class B:
+    a: A
+
+  class XModule:
+    a: A
+    def __init__(self, a: A):
+      self.a = a
+    def b(self) -> B:
+      b = B()
+      b.a = self.a
+      return b
+
+  container = Container()
+  container.register_class(A)
+  container.register_module(XModule)
 
   b = container.resolve(B)
 
