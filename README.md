@@ -29,27 +29,21 @@ A dependency of a given type `X` is exposed not only as `X` but also all of its 
 #### Regular inheritance
 
 ```python
+from abc import ABC
 from gean import Container
-from typing import Generic, TypeVar
 
-_T = TypeVar('_T', covariant=True)
-
-class Person: pass
-class Student(Person): pass
-
-class Factory(Generic[_T]): pass
-
-class StudentFactory(Factory[Student]): pass
+# Works with or without ABC
+class Worker(ABC): pass
+class WorkerImpl(Worker): pass
 
 container = Container()
-container.register_class(StudentFactory)
+container.register_class(WorkerImpl)
 
 # All of these return the same instance
-c1 = container.resolve(StudentFactory)
-c2 = container.resolve(Factory[Student])
-c3 = container.resolve(Factory[Person])
-assert c1 is c2 is c3
-assert isinstance(c1, StudentFactory)
+c1 = container.resolve(WorkerImpl)
+c2 = container.resolve(Worker)
+assert c1 is c2
+assert isinstance(c1, WorkerImpl)
 ```
 
 #### Covariance
