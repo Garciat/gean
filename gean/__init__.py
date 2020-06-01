@@ -99,32 +99,6 @@ def linearize_type_hierarchy(t: type) -> Iterable[type]:
       yield child
 
 
-def is_generic_subtype(lhs: type, rhs: type) -> bool:
-  assert is_generic_alias(lhs)
-  assert is_generic_alias(rhs)
-
-  lhs_origin = generic_origin(lhs)
-  rhs_origin = generic_origin(rhs)
-
-  assert lhs_origin == rhs_origin
-
-  ty_params = generic_parameters(lhs_origin) or ()
-  lhs_args = generic_arguments(lhs) or ()
-  rhs_args = generic_arguments(rhs) or ()
-
-  result = True
-
-  for ty_arg, lhs_arg, rhs_arg in zip(ty_params, lhs_args, rhs_args):
-    if ty_arg.__covariant__:
-      result &= is_subtype(lhs_arg, rhs_arg)
-    elif ty_arg.__contravariant__:
-      result &= is_subtype(rhs_arg, lhs_arg)  # flipped
-    else:
-      result = lhs_arg == rhs_arg
-
-  return result
-
-
 def is_subtype(lhs: type, rhs: type) -> bool:
   assert not has_unbound_type_args(lhs)
   assert not has_unbound_type_args(rhs)
@@ -140,6 +114,33 @@ def is_subtype(lhs: type, rhs: type) -> bool:
       return issubclass(generic_origin(lhs), rhs)
     else:
       return issubclass(lhs, rhs)
+
+
+def is_generic_subtype(lhs: type, rhs: type) -> bool:
+  assert is_generic_alias(lhs)
+  assert is_generic_alias(rhs)
+
+  lhs_origin = generic_origin(lhs)
+  rhs_origin = generic_origin(rhs)
+
+  assert lhs_origin == rhs_origin
+
+  ty_params = generic_parameters(lhs_origin) or ()
+  lhs_args = generic_arguments(lhs) or ()
+  rhs_args = generic_arguments(rhs) or ()
+
+  return all(itertools.starmap(is_subtype_tyvar, zip(ty_params, lhs_args, rhs_args)))
+
+
+def is_subtype_tyvar(ty_arg: Any, lhs: type, rhs: type) -> bool:
+  if ty_arg.__covariant__:
+    return is_subtype(lhs, rhs)
+  elif ty_arg.__contravariant__:
+    # flipr the args!
+    return is_subtype(rhs, lhs)
+  else:
+    # invariance
+    return lhs == rhs
 
 
 class Resolver(ABC):
