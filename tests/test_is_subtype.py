@@ -8,6 +8,16 @@ _Tco = TypeVar('_Tco', covariant=True)
 _Tcontra = TypeVar('_Tcontra', contravariant=True)
 
 
+def test_disjoint() -> None:
+  class G(Generic[_T]): pass
+  class H(Generic[_T]): pass
+
+  class P(G[int], H[str]): pass
+
+  assert is_subtype(P, G[int])
+  assert is_subtype(P, H[str])
+
+
 def test_covariance() -> None:
   class A: pass
   class B(A): pass

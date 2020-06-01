@@ -123,7 +123,8 @@ def is_generic_subtype(lhs: type, rhs: type) -> bool:
   lhs_origin = generic_origin(lhs)
   rhs_origin = generic_origin(rhs)
 
-  assert lhs_origin == rhs_origin
+  if lhs_origin != rhs_origin:
+    return False
 
   ty_params = generic_parameters(lhs_origin) or ()
   lhs_args = generic_arguments(lhs) or ()
