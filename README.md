@@ -187,6 +187,58 @@ container.register_instance('/home/garciat', name='user_dir')
 container.resolve(str, name='tmp_dir')
 ```
 
+## Alternatives
+
+As of June 1 2020, this is a non-exhaustive list of alternative solutions that also leverage Type Hints.
+
+### [injector](https://github.com/alecthomas/injector)
+
+  - Does not support hierarchy with generic interfaces
+
+<!-- do not add syntax highlighting, otherwise it will be executed -->
+```
+from typing import Generic, TypeVar
+
+from injector import Injector, Module, inject, provider, singleton
+
+
+_T = TypeVar('_T')
+
+class A(Generic[_T]): pass
+class B(A[int]): pass
+
+class C:
+  @inject
+  def __init__(self, a: A[int]):
+    self.a = a
+
+
+class MyModule(Module):
+  @singleton
+  @provider
+  def provide_b(self) -> B:  # works if return type is A[int] explicitly
+    return B()
+
+
+i = Injector([MyModule])
+
+# injector.UnknownProvider: couldn't determine provider for __main__.A[int] to None
+i.get(C)
+```
+
+### [bobthemighty/punq](https://github.com/bobthemighty/punq)
+
+  - Does not support type hierarchies
+
+### [jbasko/auto-init](https://github.com/jbasko/auto-init)
+
+  - Performs default initialization. E.g. `0` for `int`, `None` for objects
+  - Does not support generic interfaces
+
+### [asyncee/wint](https://github.com/asyncee/wint)
+
+  - Global state
+
 ## History
 
 `gean` started off as [a gist](https://gist.github.com/Garciat/ad8a3afbb3cef141fcc500ae6ba96bf4) I created to show @alexpizarroj how my team leverages Spring in our projects.
