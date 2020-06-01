@@ -26,25 +26,30 @@ Required language features:
 
 A dependency of a given type `X` is exposed not only as `X` but also all of its super types, including generic interfaces.
 
+Covariant generics are supported. Contravariance and type bounds are not yet supported.
+
 ```python
 from gean import Container
 from typing import Generic, TypeVar
 
-_T = TypeVar('_T')
+_T = TypeVar('_T', covariant=True)
 
-class A: pass
-class B(Generic[_T]): pass
-class C(A, B[int]): pass
+class Person: pass
+class Student(Person): pass
+
+class Factory(Generic[_T]): pass
+
+class StudentFactory(Factory[Student]): pass
 
 container = Container()
-container.register_class(C)
+container.register_class(StudentFactory)
 
-# All of these return the same instance of C
-c1 = container.resolve(A)
-c2 = container.resolve(B[int])
-c3 = container.resolve(C)
+# All of these return the same instance
+c1 = container.resolve(StudentFactory)
+c2 = container.resolve(Factory[Student])
+c3 = container.resolve(Factory[Person])
 assert c1 is c2 is c3
-assert isinstance(c1, C)
+assert isinstance(c1, StudentFactory)
 ```
 
 ### Caching
