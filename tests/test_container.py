@@ -32,8 +32,11 @@ def test_cache() -> None:
 
 def test_re_register() -> None:
   class A: pass
-  class XModule: pass
-  def func() -> int: pass
+  class B:
+    def __init__(self) -> None: ...
+  class XModule:
+    def m(self) -> str: ...
+  def func() -> int: ...
   singleton = 'hello'
 
   container = Container()
@@ -41,6 +44,8 @@ def test_re_register() -> None:
   container.register_instance(singleton)
   container.register_class(A)
   container.register_class(A)
+  container.register_class(B)
+  container.register_class(B)
   container.register_module(XModule)
   container.register_module(XModule)
   container.register_callable(func)
