@@ -74,21 +74,6 @@ def is_generic_alias(t: type) -> bool:
   return is_generic_type(t) and not has_unbound_type_args(t)
 
 
-if sys.version_info < (3, 7):
-  def instantiate_generic(t: type, tys: Iterable[type]) -> type:
-    subscript = cast(Callable[..., type], getattr(t, '__getitem__'))
-    return subscript(*tys)
-else:
-  def instantiate_generic(t: type, tys: Iterable[type]) -> type:
-    subscript = cast(Callable[..., type], getattr(t, '__class_getitem__'))
-    return subscript(*tys)
-
-
-def cartesian(xss: Iterable[Iterable[_T]]) -> Iterable[Tuple[_T, ...]]:
-  for row in itertools.product(*xss):
-    yield tuple(row)
-
-
 def generic_tree(t: type) -> Iterable[type]:
   if is_generic_alias(t):
     yield t
