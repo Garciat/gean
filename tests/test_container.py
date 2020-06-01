@@ -8,6 +8,8 @@ import pytest  # type: ignore
 
 
 _T = TypeVar('_T')
+_Tco = TypeVar('_Tco', covariant=True)
+_Tcontra = TypeVar('_Tcontra', contravariant=True)
 
 
 def test_missing() -> None:
@@ -206,9 +208,15 @@ def test_generic_base() -> None:
 
   assert isinstance(a_int, B)
 
+
+def test_unbound_generic() -> None:
+  class A(Generic[_T]): pass
+
+  container = Container()
+
   # `A` is a generic type with unbound type parameters
   # so it is not registered as an interface for B
-  with pytest.raises(MissingDependencyError):
+  with pytest.raises(TypeError):
     container.resolve(A)
 
 
@@ -231,3 +239,45 @@ def test_generic_return() -> None:
 
   a_str = container.resolve(A[str])
   assert isinstance(a_str, B2)
+
+
+def test_covariant() -> None:
+  class A: pass
+  class B(A): pass
+  class C(B): pass
+
+  class G(Generic[_Tco]): pass
+  class P(G[B]): pass
+
+  container = Container()
+  container.register_class(P)
+
+  p1 = container.resolve(G[A])
+  p2 = container.resolve(G[B])
+
+  assert p1 is container.resolve(P)
+  assert p2 is container.resolve(P)
+
+  with pytest.raises(MissingDependencyError):
+    container.resolve(G[C])
+
+
+def test_contravariant() -> None:
+  class A: pass
+  class B(A): pass
+  class C(B): pass
+
+  class G(Generic[_Tcontra]): pass
+  class P(G[B]): pass
+
+  container = Container()
+  container.register_class(P)
+
+  p1 = container.resolve(G[B])
+  p2 = container.resolve(G[C])
+
+  assert p1 is container.resolve(P)
+  assert p2 is container.resolve(P)
+
+  with pytest.raises(MissingDependencyError):
+    container.resolve(G[A])

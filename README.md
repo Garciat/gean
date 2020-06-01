@@ -24,9 +24,9 @@ Required language features:
 
 ### Type hierarchies
 
-A dependency of a given type `X` is exposed not only as `X` but also all of its super types, including generic interfaces.
+A dependency of a given type `X` is exposed not only as `X` but also all of its super types, including generic interfaces. Variance is supported on generic types.
 
-Covariant generics are supported. Contravariance and type bounds are not yet supported.
+#### Regular inheritance
 
 ```python
 from gean import Container
@@ -50,6 +50,58 @@ c2 = container.resolve(Factory[Student])
 c3 = container.resolve(Factory[Person])
 assert c1 is c2 is c3
 assert isinstance(c1, StudentFactory)
+```
+
+#### Covariance
+
+```python
+from gean import Container
+from typing import Generic, TypeVar
+
+_Tco = TypeVar('_Tco', covariant=True)
+
+class Person: pass
+class Student(Person): pass
+
+class Factory(Generic[_Tco]): pass
+
+class StudentFactory(Factory[Student]): pass
+
+container = Container()
+container.register_class(StudentFactory)
+
+# All of these return the same instance
+c1 = container.resolve(StudentFactory)
+c2 = container.resolve(Factory[Student])
+c3 = container.resolve(Factory[Person])
+assert c1 is c2 is c3
+assert isinstance(c1, StudentFactory)
+```
+
+#### Contravariance
+
+```python
+from gean import Container
+from typing import Generic, TypeVar
+
+_Tcontra = TypeVar('_Tcontra', contravariant=True)
+
+class Person: pass
+class Student(Person): pass
+
+class Validator(Generic[_Tcontra]): pass
+
+class PersonValidator(Validator[Person]): pass
+
+container = Container()
+container.register_class(PersonValidator)
+
+# All of these return the same instance
+c1 = container.resolve(PersonValidator)
+c2 = container.resolve(Validator[Student])
+c3 = container.resolve(Validator[Person])
+assert c1 is c2 is c3
+assert isinstance(c1, PersonValidator)
 ```
 
 ### Caching

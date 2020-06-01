@@ -89,33 +89,9 @@ def cartesian(xss: Iterable[Iterable[_T]]) -> Iterable[Tuple[_T, ...]]:
     yield tuple(row)
 
 
-def generic_supertypes(t: type) -> Set[type]:
-  g = generic_origin(t)
-
-  t_args = generic_arguments(t) or ()
-  g_params = generic_parameters(g) or ()
-
-  tys_per_slot: List[Set[type]] = []
-  for ix, ty_var in enumerate(g_params):
-    bound_ty = t_args[ix]
-    slot_tys: Set[type]
-    if ty_var.__covariant__:
-      slot_tys = set(linearize_type_hierarchy(bound_ty))
-    else:
-      slot_tys = {bound_ty}
-    tys_per_slot.append(slot_tys)
-
-  g_types: Set[type] = set()
-  for tys in cartesian(tys_per_slot):
-    g_types.add(instantiate_generic(g, tys))
-
-  assert t in g_types
-  return g_types
-
-
 def generic_tree(t: type) -> Iterable[type]:
   if is_generic_alias(t):
-    yield from generic_supertypes(t)
+    yield t
   for child in generic_bases(t):
     yield from generic_tree(child)
 
@@ -136,6 +112,49 @@ def linearize_type_hierarchy(t: type) -> Iterable[type]:
       continue
     else:
       yield child
+
+
+def is_generic_subtype(lhs: type, rhs: type) -> bool:
+  assert is_generic_alias(lhs)
+  assert is_generic_alias(rhs)
+
+  lhs_origin = generic_origin(lhs)
+  rhs_origin = generic_origin(rhs)
+
+  assert lhs_origin == rhs_origin
+
+  ty_params = generic_parameters(lhs_origin) or ()
+  lhs_args = generic_arguments(lhs) or ()
+  rhs_args = generic_arguments(rhs) or ()
+
+  result = True
+
+  for ty_arg, lhs_arg, rhs_arg in zip(ty_params, lhs_args, rhs_args):
+    if ty_arg.__covariant__:
+      result &= is_subtype(lhs_arg, rhs_arg)
+    elif ty_arg.__contravariant__:
+      result &= is_subtype(rhs_arg, lhs_arg)  # flipped
+    else:
+      result = lhs_arg == rhs_arg
+
+  return result
+
+
+def is_subtype(lhs: type, rhs: type) -> bool:
+  assert not has_unbound_type_args(lhs)
+  assert not has_unbound_type_args(rhs)
+
+  if is_generic_alias(rhs):
+    for lhs_super in linearize_type_hierarchy(lhs):
+      if is_generic_alias(lhs_super):
+        if is_generic_subtype(lhs_super, rhs):
+          return True
+    return False
+  else:
+    if is_generic_alias(lhs):
+      return issubclass(generic_origin(lhs), rhs)
+    else:
+      return issubclass(lhs, rhs)
 
 
 class Resolver(ABC):
@@ -413,9 +432,17 @@ class Container(Resolver):
 
   def register(self, provider: Provider[_T], *, name: Optional[str]=None) -> None:
     cached_provider = CachedProvider(provider)
-    hierarchy = list(linearize_type_hierarchy(provider.typeof))
-    for interface in hierarchy:
-      self._add(interface, name, cached_provider)
+    t = provider.typeof
+    if is_generic_alias(t):
+      # Generic aliases (saturated generic types) do not have an mro
+      # Instead, the mro is found in the 'origin type' (the generic type itself)
+      t = generic_origin(t)
+    for interface in inspect.getmro(t):
+      if interface in (object, Generic, ABC):
+        # These bases are not useful interfaces
+        continue
+      else:
+        self._add(interface, name, cached_provider)
 
   def _add(self, interface: type, name: Optional[str], provider: Provider[_T]) -> None:
     for_interface: Dict[Optional[str], Set[Provider[_T]]] = self._interface_providers(interface)
@@ -423,6 +450,9 @@ class Container(Resolver):
     for_name.add(provider)
 
   def resolve(self, interface: Type[_T], *, name: Optional[str] = None) -> _T:
+    if has_unbound_type_args(interface):
+      raise TypeError('type has unbound type arguments: {}'.format(interface))
+
     candidates: Set[Provider[_T]] = set(self._get_candidates(interface, name))
 
     if len(candidates) == 0:
@@ -435,12 +465,17 @@ class Container(Resolver):
       raise AmbiguousDependencyError(interface, name, candidates)
 
   def _get_candidates(self, interface: Type[_T], name: Optional[str]) -> Iterable[Provider[_T]]:
-    for_interface = self._interface_providers(interface)
+    for_interface: Dict[Optional[str], Set[Provider[_T]]]
+    if is_generic_alias(interface):
+      for_interface = self._interface_providers(generic_origin(interface))
+    else:
+      for_interface = self._interface_providers(interface)
 
     for available_name, for_name in for_interface.items():
       for provider in for_name:
         if name is None or available_name is None or name == available_name:
-          yield provider
+          if is_subtype(provider.typeof, interface):
+            yield provider
 
   def _interface_providers(self, interface: Type[_T]) -> Dict[Optional[str], Set[Provider[_T]]]:
     return cast(Dict[Optional[str], Set[Provider[_T]]], self._providers.setdefault(interface, {}))

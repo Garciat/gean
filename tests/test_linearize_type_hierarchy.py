@@ -6,6 +6,7 @@ from gean import linearize_type_hierarchy
 
 _T = TypeVar('_T')
 _Tco = TypeVar('_Tco', covariant=True)
+_Tcontra = TypeVar('_Tcontra', contravariant=True)
 
 
 def test_simple() -> None:
@@ -51,12 +52,3 @@ def test_abc() -> None:
   class B(A): pass
 
   assert set(linearize_type_hierarchy(B)) == {B, A}
-
-
-def test_covariant() -> None:
-  class A: pass
-  class B(A): pass
-  class G(Generic[_Tco]): pass
-  class P(G[B]): pass
-
-  assert set(linearize_type_hierarchy(P)) == {P, G[B], G[A]}
