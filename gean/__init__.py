@@ -3,6 +3,7 @@ from abc import abstractmethod
 from abc import abstractproperty
 import inspect
 import itertools
+import sys
 import typing
 from typing import Any
 from typing import Callable
@@ -28,18 +29,6 @@ __all__ = [
 
 _C = TypeVar('_C')
 _T = TypeVar('_T')
-
-
-class TyVarProxy:
-
-  ty_var: Any
-
-  def __init__(self, ty_var: Any):
-    self.ty_var = ty_var
-
-  @property
-  def is_covariant(self) -> bool:
-    return cast(bool, getattr(self.ty_var, '__covariant__', False))
 
 
 def get_constructor(cls: Type[_T]) -> Callable[..., _T]:
@@ -85,9 +74,14 @@ def is_generic_alias(t: type) -> bool:
   return is_generic_type(t) and not has_unbound_type_args(t)
 
 
-def instantiate_generic(t: type, tys: Iterable[type]) -> type:
-  subscript = cast(Callable[..., type], getattr(t, '__class_getitem__'))
-  return subscript(*tys)
+if sys.version_info < (3, 7):
+  def instantiate_generic(t: type, tys: Iterable[type]) -> type:
+    subscript = cast(Callable[..., type], getattr(t, '__getitem__'))
+    return subscript(*tys)
+else:
+  def instantiate_generic(t: type, tys: Iterable[type]) -> type:
+    subscript = cast(Callable[..., type], getattr(t, '__class_getitem__'))
+    return subscript(*tys)
 
 
 def cartesian(xss: Iterable[Iterable[_T]]) -> Iterable[Tuple[_T, ...]]:
