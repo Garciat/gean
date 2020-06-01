@@ -28,31 +28,36 @@ def test_cache() -> None:
 
 
 def test_autowired_class() -> None:
-  class Autowired:
-    s: str
+  class A: pass
+  class B:
+    a: A
 
   container = Container()
-  container.register_instance('hello')
-  container.register_class(Autowired)
-  container.resolve(Autowired)
+  container.register_class(A)
+  container.register_class(B)
+
+  b = container.resolve(B)
+
+  assert isinstance(b, B)
+  assert isinstance(b.a, A)
+  assert b.a is container.resolve(A)
 
 
 def test_constructor_class() -> None:
   class A: pass
   class B:
     def __init__(self, a: A):
-      self._a = a
-
-  str_instance = 'hello'
+      self.a = a
 
   container = Container()
   container.register_class(A)
   container.register_class(B)
 
-  a = container.resolve(A)
   b = container.resolve(B)
 
-  assert b._a is a
+  assert isinstance(b, B)
+  assert isinstance(b.a, A)
+  assert b.a is container.resolve(A)
 
 
 if sys.version_info >= (3, 7):
@@ -64,24 +69,30 @@ if sys.version_info >= (3, 7):
     class B:
       a: A
 
-    str_instance = 'hello'
-
     container = Container()
     container.register_class(A)
     container.register_class(B)
 
-    a = container.resolve(A)
     b = container.resolve(B)
 
-    assert b.a is a
+    assert isinstance(b, B)
+    assert isinstance(b.a, A)
+    assert b.a is container.resolve(A)
 
 
 def test_callable() -> None:
   class A: pass
-  class B: pass
+  class B:
+    a: A
+    s: str
+
+  secret = 'from callable'
 
   def hello(a: A) -> B:
-    return B()
+    b = B()
+    b.a = a
+    b.s = secret
+    return b
 
   container = Container()
   container.register_class(A)
@@ -90,58 +101,57 @@ def test_callable() -> None:
   b = container.resolve(B)
 
   assert isinstance(b, B)
+  assert isinstance(b.a, A)
+  assert b.a is container.resolve(A)
+  assert b.s is secret
 
 
-def test_hierarchy() -> None:
+def test_ambiguous_supertype() -> None:
   class A: pass
-  class B(A): pass
-  class C(A): pass
+  class B1(A): pass
+  class B2(A): pass
 
   container = Container()
-  container.register_class(B)
-  container.register_class(C)
-  container.resolve(B)
-  container.resolve(C)
+  container.register_class(B1)
+  container.register_class(B2)
 
   with pytest.raises(AmbiguousDependencyError):
     container.resolve(A)
 
 
 def test_generic_base() -> None:
-  class A: pass
-  class B(Generic[_T]): pass
-  class C(A, B[int]): pass
+  class A(Generic[_T]): pass
+  class B(A[int]): pass
 
   container = Container()
-  container.register_class(C)
-  c = container.resolve(C)
+  container.register_class(B)
 
-  assert isinstance(c, C)
-  assert container.resolve(A) is c
-  assert container.resolve(B[int]) is c
+  a_int = container.resolve(A[int])
+
+  assert isinstance(a_int, B)
+
+  # `A` is a generic type with unbound type parameters
+  # so it is not registered as an interface for B
+  with pytest.raises(MissingDependencyError):
+    container.resolve(A)
 
 
 def test_generic_return() -> None:
   class A(Generic[_T]): pass
-  class B(A[int]): pass
-  class C(A[str]): pass
+  class B1(A[int]): pass
+  class B2(A[str]): pass
 
   class XModule:
-    def b(self) -> A[int]:
-      return B()
-    def c(self) -> A[str]:
-      return C()
+    def b1(self) -> A[int]:
+      return B1()
+    def b2(self) -> A[str]:
+      return B2()
 
   container = Container()
   container.register_module(XModule)
 
   a_int = container.resolve(A[int])
-  assert isinstance(a_int, B)
+  assert isinstance(a_int, B1)
 
   a_str = container.resolve(A[str])
-  assert isinstance(a_str, C)
-
-  # `A` is a generic type with unbound type parameters
-  # so it is not registered as an interface for B or C
-  with pytest.raises(MissingDependencyError):
-    container.resolve(A)
+  assert isinstance(a_str, B2)
