@@ -30,6 +30,12 @@ __all__ = [
 _C = TypeVar('_C')
 _T = TypeVar('_T')
 
+_INTERNAL_TYPES = (
+  object,
+  ABC,
+  Generic,
+)
+
 
 def get_constructor(cls: Type[_T]) -> Callable[..., _T]:
   return cast(Callable[..., _T], getattr(cls, '__init__'))
@@ -476,7 +482,7 @@ class Container(Resolver):
     if has_unbound_type_args(interface):
       raise TypeError('type has unbound type arguments: {}'.format(interface))
 
-    candidates: Set[Provider[_T]] = set(self._get_candidates(interface, name))
+    candidates = set(self._get_candidates(interface, name))
 
     if len(candidates) == 0:
       raise MissingDependencyError(interface, name)
@@ -487,17 +493,26 @@ class Container(Resolver):
       raise AmbiguousDependencyError(interface, name, candidates)
 
   def _get_candidates(self, interface: Type[_T], name: Optional[str]) -> Iterable[Provider[_T]]:
-    for_interface: Dict[Optional[str], Set[Provider[_T]]]
-    if is_generic_alias(interface):
-      for_interface = self._interface_providers(generic_origin(interface))
-    else:
-      for_interface = self._interface_providers(interface)
-
-    for available_name, for_name in for_interface.items():
+    for available_name, for_name in self._interface_providers(interface).items():
       for provider in for_name:
         if name is None or available_name is None or name == available_name:
           if is_subtype(provider.typeof, interface):
             yield provider
 
   def _interface_providers(self, interface: Type[_T]) -> Dict[Optional[str], Set[Provider[_T]]]:
+    if is_generic_alias(interface):
+      interface = generic_origin(interface)
+
     return cast(Dict[Optional[str], Set[Provider[_T]]], self._providers.setdefault(interface, {}))
+
+  def _provider_interfaces(self, provider: Provider[_T]) -> Iterable[type]:
+    """Return the subtypes of `provider.typeof` that can be used as keys."""
+    provided_type = provider.typeof
+
+    if is_generic_alias(provided_type):
+      provided_type = generic_origin(provided_type)
+
+    for interface in inspect.getmro(provided_type):
+      # Hide interfaces that shouldn't be exposed
+      if interface not in _INTERNAL_TYPES:
+        yield interface
