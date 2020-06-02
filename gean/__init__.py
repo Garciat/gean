@@ -127,24 +127,6 @@ def generic_tree(t: type) -> Iterable[type]:
       yield from generic_tree(child)
 
 
-def linearize_type_hierarchy(t: type) -> Iterable[type]:
-  for child in generic_tree(t):
-    yield child
-  if is_generic_alias(t):
-    # Generic aliases (saturated generic types) do not have an mro
-    # Instead, the mro is found in the 'origin type' (the generic type itself)
-    t = generic_origin(t)
-  for child in inspect.getmro(t):
-    if child in (object, Generic, ABC):
-      # These bases are not useful interfaces
-      continue
-    elif has_unbound_type_args(child):
-      # Do not expose generic types, because they are not complete types
-      continue
-    else:
-      yield child
-
-
 def is_subtype(lhs: type, rhs: type) -> bool:
   if has_unbound_type_args(lhs):
     raise TypeError('type has unbound type arguments {}'.format(lhs))
@@ -152,10 +134,9 @@ def is_subtype(lhs: type, rhs: type) -> bool:
     raise TypeError('type has unbound type arguments {}'.format(rhs))
 
   if is_generic_alias(rhs):
-    for lhs_super in linearize_type_hierarchy(lhs):
-      if is_generic_alias(lhs_super):
-        if is_generic_subtype(lhs_super, rhs):
-          return True
+    for lhs_super in generic_tree(lhs):
+      if is_generic_subtype(lhs_super, rhs):
+        return True
     return False
   else:
     if is_generic_alias(lhs):
